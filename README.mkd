@@ -71,8 +71,9 @@ for minion in $minion0 $minion1 $minion2; do
     ssh core@$minion -t "sudo reboot"
 done
 ```
-Kickservices
-------------
+
+Kick services
+-------------
 ```
 for minion in $minion0 $minion1 $minion2; do
     ssh core@$minion -t "sudo systemctl restart flannel.service"
