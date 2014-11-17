@@ -1,0 +1,100 @@
+heat_template_version: 2013-05-23
+
+description: Deploy a few coreOS node
+
+parameters:
+  key_name:
+    type: string
+  flavor:
+    type: string
+    default: m1.medium
+  image:
+    type: string
+    default: CoreOS
+  number_of_nodes:
+    type: number
+    default: 3
+  etcd_token:
+    type: string
+
+  public_network_id:
+    type: string
+    default: public
+    description: >
+      ID of public network for which floating IP addresses will be allocated
+  private_net_name:
+    type: string
+    default: private
+    description: Name of private network to be created
+  private_net_cidr:
+    type: string
+    default: 10.1.0.0/24
+    description: Private network address (CIDR notation)
+  private_net_gateway:
+    type: string
+    default: 10.1.0.1
+    description: Private network gateway address
+  private_net_pool_start:
+    type: string
+    default: 10.1.0.10
+    description: Start of private network IP address allocation pool
+  private_net_pool_end:
+    type: string
+    default: 10.1.0.254
+    description: End of private network IP address allocation pool
+
+resources:
+  secgroup:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      rules: 
+        - {protocol: tcp, port_range_max: 22, port_range_min: 22}
+        - {protocol: tcp, port_range_max: 80, port_range_min: 80}
+        - {protocol: tcp, port_range_max: 65535, port_range_min: 1, remote_mode: remote_group_id}
+        - {protocol: icmp}
+
+  private_net:
+    type: OS::Neutron::Net
+    properties:
+      name: {get_param: private_net_name}
+
+  private_subnet:
+    type: OS::Neutron::Subnet
+    properties:
+      network_id: {get_resource: private_net}
+      cidr: {get_param: private_net_cidr}
+      gateway_ip: {get_param: private_net_gateway}
+      allocation_pools:
+        - start: {get_param: private_net_pool_start}
+          end: {get_param: private_net_pool_end}
+      dns_nameservers:
+        - 8.8.8.8
+
+  router:
+    type: OS::Neutron::Router
+    properties:
+      external_gateway_info:
+        network: {get_param: public_network_id}
+
+  router_interface:
+    type: OS::Neutron::RouterInterface
+    properties:
+      router_id: {get_resource: router}
+      subnet_id: {get_resource: private_subnet}
+
+  server_group:
+    type: OS::Heat::ResourceGroup
+    properties:
+      count: {get_param: number_of_nodes}
+      resource_def:
+        type: coreos_instance.yaml
+        properties:
+          name: coreos%index%
+          image: {get_param: image}
+          key_name: {get_param: key_name}
+          flavor: {get_param: flavor}
+          private_net: {get_resource: private_net}
+          private_subnet: {get_resource: private_subnet}
+          public_network_id: {get_param: public_network_id}
+          secgroup: {get_resource: secgroup}
+          etcd_token: {get_param: etcd_token}

@@ -1,0 +1,17 @@
+#cloud-config
+
+coreos:
+  etcd:
+    # generate a new token for each unique cluster from https://discovery.etcd.io/new
+    discovery: https://discovery.etcd.io/ff4faa29571edc0122a99f6e3919b0d1
+    # multi-region and multi-cloud deployments need to use $public_ipv4
+    addr: $private_ipv4:4001
+    peer-addr: $private_ipv4:7001
+  units:
+    - name: etcd.service
+      command: start
+    - name: fleet.service
+      command: start
+ssh_authorized_keys:
+  # include one or more SSH public keys
+  - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCh6i2zN+KWnfA9gzu2b319wAybwcljskLtU+0hXUB3KZqgcQRW5ZWatAh3iwWgA5Exf6vQjbnYOA0RcVLpKu7bgSfFE1h3j4lRqh55xWWWQwbtBl2DZVzN7L+3WKqfDwL7zpYgl58JNdxmcS8Uvp2lT9tOU5encUQYh83H6x/aAqc1EcGDtfpQNGiCJ6cuOyBkoDobVw7WxoaD4oeH72dwO+p7jU0KvJlBMghmRyYEQRrQpogbO2Ot7zQlir6c+nu8Wv9xw/pLdoc91N7W0Is5ME0l3gqDoxLP0xDf80vTUCMka5IcKshV7U9+vT+DNO5HafgWlIdFVXMt7TvkZzyJ uberj@localhost.localdomain 

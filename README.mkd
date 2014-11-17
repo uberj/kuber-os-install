@@ -1,0 +1,92 @@
+Notes on Installing Kubernetes onto CoreOS running on Openstack
+---------------------------------------------------------------
+guide: `https://www.digitalocean.com/community/tutorials/how-to-install-and-configure-kubernetes-on-top-of-a-coreos-cluster`
+
+Install coreos (Make sure you have a coreOS image setup):
+```
+etcd_token=$(curl https://discovery.etcd.io/new 2>&/dev/null | cut -d \/ -f 4)
+
+heat stack-create coreos --template-file=coreos.yaml --parameters="key_name=$(whoami)-key;public_network_id=9f327a9e-5de8-4089-be19-29a3815da2b3;image=9071eb15-588b-4a3e-b5cf-c92df90892f3;etcd_token=$etcd_token" && watch -n 0.2 "heat stack-list && nova list"
+```
+
+Some ip addresses
+```
+master0=10.22.96.176
+minion0=10.22.96.176
+minion1=10.22.96.175
+minion2=10.22.96.174
+```
+
+build flannel
+```
+mkdir -p /opt/bin
+docker run -i -t google/golang /bin/bash -c "go get github.com/coreos/flannel"
+CONTAINER_ID=$(docker ps -l -q)
+docker cp $CONTAINER_ID:/gopath/bin/flannel /opt/bin/
+```
+
+build kuber
+```
+$K_VERSION=v0.4.3
+git clone https://github.com/GoogleCloudPlatform/kubernetes.git
+cd kubernetes/build
+git checkout $K_VERSION
+yes | ./make-binaries.sh
+
+cp ../_output/build/linux/amd64/* /opt/bin
+```
+
+move binaries to all our servers
+```
+cd /opt/bin
+servers="$minion0 $minion1 $minion2"
+for minion in $minions; do
+    tar -czf - . | ssh core@$minion "sudo mkdir -p /opt/bin; cd /opt/bin; sudo tar xzvf -"
+done
+```
+
+Setting up master specifc files
+```
+rsync --rsync-path="sudo rsync" apiserver.service core@$master0:/etc/systemd/system
+rsync --rsync-path="sudo rsync" scheduler.service core@$master0:/etc/systemd/system
+rsync --rsync-path="sudo rsync" controller-manager.service core@$master0:/etc/systemd/system
+```
+
+Setting up cluster specifc files (all machines)
+```
+fs=( "flannel.service" "docker.service" "proxy.service" "kubelet.service" )
+for minion in $minion0 $minion1 $minion2; do
+    for fn in $fs; do
+        rsync --rsync-path='sudo rsync' $fn core@$minion:/etc/systemd/system
+    done
+done
+for minion in $minion0 $minion1 $minion2; do
+    ssh core@$minion -t "cd /etc/systemd/system && sudo systemctl enable *.service"
+done
+```
+
+Reboot machines
+```
+for minion in $minion0 $minion1 $minion2; do
+    ssh core@$minion -t "sudo reboot"
+done
+```
+Kickservices
+------------
+```
+for minion in $minion0 $minion1 $minion2; do
+    ssh core@$minion -t "sudo systemctl restart flannel.service"
+done
+sleep 10
+for minion in $minion0 $minion1 $minion2; do
+    ssh core@$minion -t "sudo systemctl restart docker.service"
+    ssh core@$minion -t "sudo systemctl restart kubelet.service"
+    ssh core@$minion -t "sudo systemctl restart proxy.service"
+done
+
+sleep 3
+for minion in $minion0 $minion1 $minion2; do
+    echo "looking at $minion..."
+    ssh core@$minion -t "sudo systemctl --failed"
+done
+```

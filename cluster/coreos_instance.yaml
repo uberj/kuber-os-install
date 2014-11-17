@@ -1,0 +1,69 @@
+heat_template_version: 2013-05-23
+description: Deploy a coreOS instance 
+parameters:
+  name:
+    type: string
+    description: The instances name
+  image:
+    type: string
+    description: Image used for servers
+  key_name:
+    type: string
+    description: SSH key to connect to the servers
+  flavor:
+    type: string
+    description: flavor used by the servers
+  private_net:
+    type: string
+  private_subnet:
+    type: string
+  public_network_id:
+    type: string
+  secgroup:
+    type: string
+  etcd_token:
+    type: string
+
+resources:
+  server:
+    type: OS::Nova::Server
+    properties:
+      name: {get_param: name}
+      flavor: {get_param: flavor}
+      image: {get_param: image}
+      key_name: {get_param: key_name}
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: |
+            #cloud-config
+
+            coreos:
+              etcd:
+                discovery: https://discovery.etcd.io/etcd_token
+                addr: $private_ipv4:4001
+                peer-addr: $private_ipv4:7001
+              units:
+                - name: etcd.service
+                  command: start
+                - name: fleet.service
+                  command: start
+          params:
+            etcd_token: {get_param: etcd_token}
+      networks:
+        - port: {get_resource: port}
+
+  port:
+    type: OS::Neutron::Port
+    properties:
+      network_id: {get_param: private_net}
+      fixed_ips:
+        - subnet_id: {get_param: private_subnet}
+      security_groups:
+        - {get_param: secgroup}
+
+  floating_ip:
+    type: OS::Neutron::FloatingIP
+    properties:
+      floating_network_id: {get_param: public_network_id}
+      port_id: {get_resource: port}
