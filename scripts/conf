@@ -1,0 +1,5 @@
+export master0=10.22.96.191
+export minion0=10.22.96.191
+export minion1=10.22.96.189
+export minion2=10.22.96.190
+export build_host=10.22.96.78

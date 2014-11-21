@@ -13,7 +13,7 @@ parameters:
     default: CoreOS
   number_of_nodes:
     type: number
-    default: 3
+    default: 5
   etcd_token:
     type: string
 

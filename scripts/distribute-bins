@@ -1,0 +1,10 @@
+#!/bin/bash
+
+source scripts/conf
+
+set -x
+
+minions="$minion0 $minion1 $minion2"
+for minion in $minions; do
+    ssh -o StrictHostKeyChecking=no -A core@$build_host -t "cd /opt/bin && tar -czf - . | ssh core@$minion 'sudo -E mkdir -p /opt/bin; cd /opt/bin; sudo -E tar xzvf -'"
+done

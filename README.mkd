@@ -1,5 +1,11 @@
 Notes on Installing Kubernetes onto CoreOS running on Openstack
 ---------------------------------------------------------------
+coreOS image: 
+```
+wget http://stable.release.core-os.net/amd64-usr/current/coreos_production_openstack_image.img.bz2
+extract coreos_production_openstack_image.img.bz2
+glance image-create --name coreOS.444.5.0 --container-format bare --disk-format qcow2  --file coreos_production_openstack_image.img
+```
 guide: `https://www.digitalocean.com/community/tutorials/how-to-install-and-configure-kubernetes-on-top-of-a-coreos-cluster`
 
 Install coreos (Make sure you have a coreOS image setup):
@@ -11,10 +17,10 @@ heat stack-create coreos --template-file=coreos.yaml --parameters="key_name=$(wh
 
 Some ip addresses
 ```
-master0=10.22.96.176
-minion0=10.22.96.176
-minion1=10.22.96.175
-minion2=10.22.96.174
+master0=10.22.96.180
+minion0=10.22.96.180
+minion1=10.22.96.179
+minion2=10.22.96.178
 ```
 
 build flannel
@@ -39,7 +45,7 @@ cp ../_output/build/linux/amd64/* /opt/bin
 move binaries to all our servers
 ```
 cd /opt/bin
-servers="$minion0 $minion1 $minion2"
+minions="$minion0 $minion1 $minion2"
 for minion in $minions; do
     tar -czf - . | ssh core@$minion "sudo mkdir -p /opt/bin; cd /opt/bin; sudo tar xzvf -"
 done
@@ -57,10 +63,12 @@ Setting up cluster specifc files (all machines)
 fs=( "flannel.service" "docker.service" "proxy.service" "kubelet.service" )
 for minion in $minion0 $minion1 $minion2; do
     for fn in $fs; do
+        echo "Running: rsync --rsync-path='sudo rsync' $fn core@$minion:/etc/systemd/system"
         rsync --rsync-path='sudo rsync' $fn core@$minion:/etc/systemd/system
     done
 done
 for minion in $minion0 $minion1 $minion2; do
+    echo 'ssh core@$minion -t "cd /etc/systemd/system && sudo systemctl enable *.service'
     ssh core@$minion -t "cd /etc/systemd/system && sudo systemctl enable *.service"
 done
 ```
@@ -78,7 +86,9 @@ Kick services
 for minion in $minion0 $minion1 $minion2; do
     ssh core@$minion -t "sudo systemctl restart flannel.service"
 done
-sleep 10
+echo "sleeping 5..."
+sleep 5
+echo "awake now..."
 for minion in $minion0 $minion1 $minion2; do
     ssh core@$minion -t "sudo systemctl restart docker.service"
     ssh core@$minion -t "sudo systemctl restart kubelet.service"

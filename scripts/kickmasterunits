@@ -1,0 +1,9 @@
+#!/bin/bash
+
+source scripts/conf
+
+set -x
+set -e
+
+ssh core@$master0 -t "sudo systemctl restart apiserver.service"
+ssh core@$master0 -t "sudo systemctl restart scheduler.service"

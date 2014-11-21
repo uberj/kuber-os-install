@@ -1,0 +1,12 @@
+#!/bin/bash
+
+source scripts/conf
+
+set -x
+
+echo "Send over master unit files"
+rsync --rsync-path="sudo rsync" apiserver.service core@$master0:/etc/systemd/system
+rsync --rsync-path="sudo rsync" scheduler.service core@$master0:/etc/systemd/system
+rsync --rsync-path="sudo rsync" controller-manager.service core@$master0:/etc/systemd/system
+ssh core@$master0 -t "cd /etc/systemd/system && sudo systemctl enable *.service"
+

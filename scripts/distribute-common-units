@@ -1,0 +1,18 @@
+#!/bin/bash
+
+source scripts/conf
+set -x
+set -e
+
+echo "Send over common unit files"
+fs=( "flannel.service" "docker.service" "proxy.service" "kubelet.service" )
+for minion in $minion0 $minion1 $minion2; do
+    for fn in "${fs[@]}"; do
+        rsync --rsync-path='sudo rsync' $fn core@$minion:/etc/systemd/system
+    done
+done
+echo "Enabling Services"
+for minion in $minion0 $minion1 $minion2; do
+    ssh core@$minion -t "cd /etc/systemd/system && sudo systemctl enable *.service"
+done
+

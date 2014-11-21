@@ -1,0 +1,21 @@
+#!/bin/bash
+
+source scripts/conf
+
+set -x
+set -e
+
+for minion in $minion0 $minion1 $minion2; do
+    ssh core@$minion -t "sudo systemctl restart docker.service"
+    ssh core@$minion -t "sudo systemctl restart kubelet.service"
+    ssh core@$minion -t "sudo systemctl restart proxy.service"
+done
+
+sleep 3
+for minion in $minion0 $minion1 $minion2; do
+    ssh core@$minion -t "sudo systemctl status docker.service"
+    ssh core@$minion -t "sudo systemctl status kubelet.service"
+    ssh core@$minion -t "sudo systemctl status proxy.service"
+    echo ""
+    echo ""
+done

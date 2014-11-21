@@ -1,0 +1,11 @@
+#!/bin/bash
+
+source scripts/conf
+
+set -x
+set -e
+
+for minion in $minion0 $minion1 $minion2; do
+    echo "looking at $minion..."
+    ssh core@$minion -t "sudo systemctl --failed"
+done
